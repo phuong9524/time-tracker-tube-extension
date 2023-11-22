@@ -18,18 +18,46 @@ chrome.runtime.onMessage.addListener(function (response) {
   if (response) {
     const watchTime = document.querySelector(".ytp-time-current");
     const duration = document.querySelector(".ytp-time-duration");
+    const videoId = response.tabUrl.searchParams.get("v");
 
-    localStorage.setItem("watchTime", watchTime.innerText);
-    localStorage.setItem("duration", duration.innerText);
-    localStorage.setItem("url", response.tabUrl);
+    fetchData(videoId, watchTime.innerText, duration.innerText);
+    // let channelHandle = document.getElementById("channel-handle");
 
-    let channelHandle = document.getElementById("channel-handle");
+    // let title = channelHandle.getAttribute("title");
 
-    let title = channelHandle.getAttribute("title");
-
-    console.log(title);
+    // console.log(title);
   }
 });
+
+const fetchData = async (videoId, timeViewed, totalVideoTime) => {
+  const response = await fetch(
+    `http://localhost:8080/api/video/${videoId}/watch-status`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        videoId,
+        timeViewed,
+        totalVideoTime,
+      }),
+      headers: {
+        "Content-type": "application/json; charset-UFT-8",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS, PUT",
+      },
+    }
+  );
+  return response.json;
+};
+
+const getStatus = async (videoId) => {
+  await fetch(`http://localhost:8080/api/video/${videoId}/watch-status`)
+    .then((response) => {
+      return response.json();
+    })
+    .then((data) => {
+      return data;
+    });
+};
 
 function createCustomAlert(message) {
   // Create a div element for the popup
@@ -55,10 +83,8 @@ function createCustomAlert(message) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "open_dialog_box") {
-    if (
-      localStorage.getItem("watchTime") !== localStorage.getItem("duration")
-    ) {
-      createCustomAlert("This is a custom alert message.");
+    if (getStatus()) {
+      createCustomAlert("cần xem hết để thực hiện hành động này");
     }
   }
 });

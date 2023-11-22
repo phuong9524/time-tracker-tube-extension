@@ -27,14 +27,16 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
 chrome.tabs.onActivated.addListener(function (activeInfo) {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, { action: "open_dialog_box" });
+    // chrome.tabs.sendMessage(tabs[0].id, { action: tabUrl });
+    console.log(tabs);
   });
 });
 
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, updatedTab) {
   // if (tabId === tab.id && changeInfo.status === "complete") {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, { action: "open_dialog_box" });
+    // chrome.tabs.sendMessage(tabs[0].id, { action: "open_dialog_box" });
+    console.log(tabs);
   });
   // }
 });
