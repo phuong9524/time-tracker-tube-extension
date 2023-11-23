@@ -1,35 +1,8 @@
-const elementToObserve = document.querySelector(
-  "#movie_player > div.ytp-chrome-bottom > div.ytp-chrome-controls > div.ytp-left-controls > div.ytp-time-display.notranslate > span:nth-child(2) > span.ytp-time-current"
-);
+let videoId;
+let videoStatus;
+let lastVideoUrl = "";
 
-const observer = new MutationObserver(() => {
-  // chrome.runtime.sendMessage({ action: "domChanged" });
-  chrome.runtime.sendMessage({ fromContentScript: true });
-});
-
-observer.observe(elementToObserve, {
-  characterData: true,
-  attributes: true,
-  childList: true,
-  subtree: true,
-});
-
-chrome.runtime.onMessage.addListener(function (response) {
-  if (response) {
-    const watchTime = document.querySelector(".ytp-time-current");
-    const duration = document.querySelector(".ytp-time-duration");
-    const videoId = response.tabUrl.searchParams.get("v");
-
-    fetchData(videoId, watchTime.innerText, duration.innerText);
-    // let channelHandle = document.getElementById("channel-handle");
-
-    // let title = channelHandle.getAttribute("title");
-
-    // console.log(title);
-  }
-});
-
-const fetchData = async (videoId, timeViewed, totalVideoTime) => {
+const setStatus = async (videoId, timeViewed, totalVideoTime) => {
   const response = await fetch(
     `http://localhost:8080/api/video/${videoId}/watch-status`,
     {
@@ -52,39 +25,76 @@ const fetchData = async (videoId, timeViewed, totalVideoTime) => {
 const getStatus = async (videoId) => {
   await fetch(`http://localhost:8080/api/video/${videoId}/watch-status`)
     .then((response) => {
-      return response.json();
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+      return response.text();
     })
-    .then((data) => {
-      return data;
+    .then((textData) => {
+      videoStatus = textData;
     });
 };
 
-function createCustomAlert(message) {
-  // Create a div element for the popup
-  const popup = document.createElement("div");
-  popup.style.position = "fixed";
-  popup.style.top = "50%";
-  popup.style.left = "50%";
-  popup.style.transform = "translate(-50%, -50%)";
-  popup.style.background = "white";
-  popup.style.padding = "20px";
-  popup.style.border = "1px solid #ccc";
-  popup.style.boxShadow = "0 0 10px rgba(0, 0, 0, 0.1)";
-  popup.style.zIndex = "9999";
-
-  popup.innerHTML = `
-    <h1>Custom Alert</h1>
-    <p>${message}</p>
-    <button onclick="document.body.removeChild(this.parentNode)">Close</button>
-  `;
-
-  document.body.appendChild(popup);
+function getParameterByName(name, url) {
+  if (!url) {
+    url = window.location.href;
+  }
+  name = name.replace(/[[\]]/g, "\\$&");
+  const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)");
+  const results = regex.exec(url);
+  if (!results) {
+    return null;
+  }
+  if (!results[2]) {
+    return "";
+  }
+  return decodeURIComponent(results[2].replace(/\+/g, " "));
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "open_dialog_box") {
-    if (getStatus()) {
-      createCustomAlert("cần xem hết để thực hiện hành động này");
-    }
+// observe time watch change
+const elementToObserve = document.querySelector(
+  "#movie_player > div.ytp-chrome-bottom > div.ytp-chrome-controls > div.ytp-left-controls > div.ytp-time-display.notranslate > span:nth-child(2) > span.ytp-time-current"
+);
+
+const observeWatchTimeChange = new MutationObserver(() => {
+  const watchTime = document.querySelector(".ytp-time-current");
+  const duration = document.querySelector(".ytp-time-duration");
+  const title = document.title.split(" - YouTube")[0];
+  const currentURL = window.location.href;
+  videoId = getParameterByName("v", currentURL);
+
+  setStatus(videoId, watchTime.innerText, duration.innerText);
+});
+
+observeWatchTimeChange.observe(elementToObserve, {
+  characterData: true,
+  attributes: true,
+  childList: true,
+  subtree: true,
+});
+
+// observe change video
+function observeVideoChanges() {
+  const videoElement = document.querySelector("video");
+  if (videoElement && videoElement.src !== lastVideoUrl) {
+    lastVideoUrl = videoElement.src;
+    getStatus(videoId);
+    videoElement.pause();
+    if (videoStatus === "INCOMPLETE")
+      chrome.runtime.sendMessage({ videoChanged: true });
   }
+}
+
+// Listen for clicks on the YouTube page that might indicate a change in the video
+document.addEventListener("click", () => {
+  observeVideoChanges();
+});
+
+const observerVideoChange = new MutationObserver(observeVideoChanges);
+
+observerVideoChange.observe(document.body, {
+  subtree: true,
+  childList: true,
+  attributes: true,
+  attributeFilter: ["src"],
 });

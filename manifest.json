@@ -24,8 +24,7 @@
   "content_scripts": [
     {
       "js": ["content.js"],
-      "matches": ["<all_urls>"],
-      "all_frames": true
+      "matches": ["*://www.youtube.com/watch?v=*"]
     }
   ],
   "background": {
