@@ -51,10 +51,8 @@ function getParameterByName(name, url) {
   return decodeURIComponent(results[2].replace(/\+/g, " "));
 }
 
-let videoStatus;
-
 const getStatus = async (videoId) => {
-  await fetch(`http://localhost:8080/api/video/${videoId}/watch-status`)
+  return fetch(`http://localhost:8080/api/video/${videoId}/watch-status`)
     .then((response) => {
       if (!response.ok) {
         throw new Error("Network response was not ok");
@@ -62,18 +60,18 @@ const getStatus = async (videoId) => {
       return response.text();
     })
     .then((textData) => {
-      videoStatus = textData;
+      return textData;
     });
 };
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "previousUrl") {
-    const previousUrl = message.url;
+    const previousUrl = Object.values(message.url).slice(-1)[0];
     videoId = getParameterByName("v", previousUrl);
-    getStatus(videoId);
-    if (videoStatus === "INCOMPLETE")
-      alert("Cần xem hết để thực hiện hành động này");
+    console.log("count");
+    getStatus(videoId).then((videoStatus) => {
+      if (videoStatus === "INCOMPLETE") {
+        alert("Cần xem hết để thực hiện hành động này");
+      }
+    });
   }
 });
-
-// alert("Cần xem hết để thực hiện hành động này");

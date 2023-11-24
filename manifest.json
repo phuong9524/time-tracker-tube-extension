@@ -10,7 +10,8 @@
     "tabs",
     "scripting",
     "background",
-    "notifications"
+    "notifications",
+    "<all_urls>"
   ],
   "icons": {
     "16": "images/icon-16.png",
@@ -24,7 +25,7 @@
   "content_scripts": [
     {
       "js": ["content.js"],
-      "matches": ["*://www.youtube.com/watch?v=*"]
+      "matches": ["*://www.youtube.com/watch?*"]
     }
   ],
   "background": {

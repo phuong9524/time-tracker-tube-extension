@@ -7,23 +7,49 @@
 //   }
 // });
 
-let previousUrl;
+let previousUrl = {};
+let isInjected = false;
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (
+    changeInfo.status === "complete" &&
+    tab.url.includes("https://www.youtube.com/watch")
+  ) {
+    previousUrl[tabId] = tab.url;
+    console.log(previousUrl);
+  }
+});
+
+chrome.tabs.onActivated.addListener(() => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0].url) {
-      previousUrl = tabs[0].url;
+    if (tabs[0].url !== Object.values(previousUrl).slice(-1)[0]) {
+      if (!isInjected) {
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          files: ["scripts/alert.js"],
+        });
+      }
+
+      function sendMessageToInjectedScript() {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: "previousUrl",
+          url: previousUrl,
+        });
+      }
+      sendMessageToInjectedScript();
     }
   });
 });
 
-// change tab
-chrome.tabs.onHighlighted.addListener(() => {
+// close tab
+chrome.tabs.onRemoved.addListener(() => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    chrome.scripting.executeScript({
-      target: { tabId: tabs[0].id },
-      files: ["scripts/alert.js"],
-    });
+    if (!isInjected) {
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        files: ["scripts/alert.js"],
+      });
+    }
     function sendMessageToInjectedScript() {
       chrome.tabs.sendMessage(tabs[0].id, {
         action: "previousUrl",
@@ -34,24 +60,22 @@ chrome.tabs.onHighlighted.addListener(() => {
   });
 });
 
-// close tab
-chrome.tabs.onRemoved.addListener(() => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    chrome.scripting.executeScript({
-      target: { tabId: tabs[0].id },
-      files: ["scripts/alert.js"],
-    });
-  });
-});
-
 // change video
 chrome.runtime.onMessage.addListener((message) => {
   if (message && message.videoChanged) {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.scripting.executeScript({
-        target: { tabId: tabs[0].id },
-        files: ["scripts/alert.js"],
-      });
+      if (!isInjected) {
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          files: ["scripts/alert.js"],
+        });
+      }
+      function sendMessageToInjectedScript() {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: "changeVideo",
+        });
+      }
+      sendMessageToInjectedScript();
     });
   }
 });
